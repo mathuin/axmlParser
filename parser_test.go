@@ -1,19 +1,33 @@
 package axmlParser
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 )
 
-func TestParser(t *testing.T) {
-	var filename = "a.apk"
-
-	listener := new(AppNameListener)
-	_, err := ParseApk(filename, listener)
-	if err != nil {
-		t.Error(err)
+func check(t *testing.T, expected, actual string) {
+	if expected != actual {
+		t.Errorf("Wanted \"%+v\", got \"%+v\" instead", expected, actual)
 	}
+}
 
-	fmt.Println("Init package is", listener.PackageName,
-		"Activity is", listener.ActivityName)
+var parserTests = []struct {
+	name, version, label, icon, filename string
+	err                                  error
+}{
+	{"org.twilley.android.firstapp", "1.0", "FirstApp", "res/drawable-mdpi-v4/ic_launcher.png", "a.apk", nil},
+}
+
+func TestParser(t *testing.T) {
+	for _, tt := range parserTests {
+		listener := new(AppNameListener)
+		_, err := ParseApk(tt.filename, listener)
+		check(t, tt.name, listener.PackageName)
+		check(t, tt.version, listener.VersionName)
+		check(t, tt.label, listener.ApplicationLabel)
+		check(t, tt.icon, listener.ApplicationIcon)
+		if !reflect.DeepEqual(tt.err, err) {
+			t.Errorf("Wanted \"%+v\", got \"%+v\" instead", tt.err, err)
+		}
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-xweb/log"
+	"github.com/mathuin/axmlParser/binres"
 )
 
 const (
@@ -47,6 +48,7 @@ var (
 type Parser struct {
 	// Data
 	listener Listener
+	table    *binres.Table
 
 	// Internal
 	Namespaces map[string]string
@@ -58,9 +60,10 @@ type Parser struct {
 	ParserOffset                        int
 }
 
-func New(listener Listener) *Parser {
+func New(listener Listener, table *binres.Table) *Parser {
 	return &Parser{
 		listener:     listener,
+		table:        table,
 		Namespaces:   make(map[string]string),
 		Data:         make([]byte, 0),
 		StringsTable: make([]string, 0),
@@ -384,7 +387,7 @@ func (parser *Parser) getStringFromStringTable(offset int) string {
 			chars[i] = parser.Data[offset+2+i] // NOPMD
 		}
 	} else {
-		strLength = ((int(parser.Data[offset+1] << 8)) & 0xFF00) |
+		strLength = ((int(parser.Data[offset+1]) << 8) & 0xFF00) |
 			(int(parser.Data[offset]) & 0xFF)
 		chars = make([]byte, strLength) // NOPMD
 		for i := 0; i < strLength; i++ {
@@ -456,7 +459,17 @@ func (parser *Parser) getAttributeValue(tpe int, data int) string {
 	case TYPE_COLOR2:
 		res = fmt.Sprintf("%#08X", data)
 	case TYPE_ID_REF:
-		res = fmt.Sprintf("@id/0x%08X", data)
+		if parser.table != nil {
+			tref := binres.TableRef(data)
+			v, err := tref.Resolve(parser.table)
+			if err != nil {
+				res = fmt.Sprintf("@id/0x%08X", data)
+			} else {
+				res = v.ResolveString(parser.table)
+			}
+		} else {
+			res = fmt.Sprintf("@id/0x%08X", data)
+		}
 	case TYPE_ATTR_REF:
 		res = fmt.Sprintf("?id/0x%08X", data)
 	default:

@@ -5,6 +5,8 @@ type AppNameListener struct {
 	VersionName      string
 	VersionCode      string
 	ActivityName     string
+	ApplicationLabel string
+	ApplicationIcon  string
 	tempActivityName string
 	findMainActivity bool
 }
@@ -63,6 +65,19 @@ func (listener *AppNameListener) StartElement(uri, localName, qName string,
 	attrs []*Attribute) {
 	if listener.findMainActivity {
 		return
+	}
+
+	if localName == "application" {
+		for _, attr := range attrs {
+			switch attr.Name {
+			case "label":
+				listener.ApplicationLabel = attr.Value
+				break
+			case "icon":
+				listener.ApplicationIcon = attr.Value
+				break
+			}
+		}
 	}
 
 	if localName == "manifest" {

@@ -3,6 +3,8 @@ package axmlParser
 import (
 	"archive/zip"
 	"io/ioutil"
+
+	"github.com/mathuin/axmlParser/binres"
 )
 
 func ParseApk(apkpath string, listener Listener) (*Parser, error) {
@@ -13,16 +15,38 @@ func ParseApk(apkpath string, listener Listener) (*Parser, error) {
 	defer r.Close()
 
 	var xmlf *zip.File
+	var arscf *zip.File
 
 	for _, f := range r.File {
-		if f.Name != "AndroidManifest.xml" {
-			continue
+		if f.Name == "AndroidManifest.xml" {
+			xmlf = f
 		}
-		xmlf = f
-		break
+		if f.Name == "resources.arsc" {
+			arscf = f
+		}
+		if xmlf != nil && arscf != nil {
+			break
+		}
 	}
 
-	if xmlf == nil {
+	if xmlf == nil || arscf == nil {
+		return nil, err
+	}
+
+	arc, err := arscf.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer arc.Close()
+
+	abuf := make([]byte, 1)
+	abuf, err = ioutil.ReadAll(arc)
+	if err != nil {
+		return nil, err
+	}
+
+	tbl := new(binres.Table)
+	if err = tbl.UnmarshalBinary(abuf); err != nil {
 		return nil, err
 	}
 
@@ -37,7 +61,7 @@ func ParseApk(apkpath string, listener Listener) (*Parser, error) {
 		return nil, err
 	}
 
-	parser := New(listener)
+	parser := New(listener, tbl)
 	err = parser.Parse(bs)
 	if err != nil {
 		return nil, err
@@ -50,7 +74,7 @@ func ParseAxml(axmlpath string, listener Listener) (*Parser, error) {
 	if err != nil {
 		return nil, err
 	}
-	parser := New(listener)
+	parser := New(listener, nil)
 	err = parser.Parse(bs)
 	if err != nil {
 		return nil, err
